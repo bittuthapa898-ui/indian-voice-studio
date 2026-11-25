@@ -1,0 +1,18 @@
+{
+  "name": "Indian Voice Studio",
+  "short_name": "Voice Studio",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#101827",
+  "description": "Hindi, English and Hinglish text to speech studio",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
