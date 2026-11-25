@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <meta name="description" content="Free Hindi, English and Hinglish text to speech studio">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Indian Voice Studio</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1220;--panel:#121d30;--line:#26364d;--text:#eef4ff;--muted:#a8b5c8;--accent:#ff8a24;--teal:#22c7b8}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top right,#1b3150 0,transparent 38%),var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+    main{max-width:900px;margin:auto;padding:28px 16px 48px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}.logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--teal));display:grid;place-items:center;color:#08111d;font-weight:900;font-size:20px}
+    h1{font-size:clamp(25px,5vw,38px);margin:0}.sub{color:var(--muted);margin:4px 0 0}.panel{background:rgba(18,29,48,.94);border:1px solid var(--line);border-radius:20px;padding:20px;margin-top:18px;box-shadow:0 18px 55px #0003}
+    label{display:block;font-weight:650;margin:0 0 7px}.hint{color:var(--muted);font-size:13px;margin-top:6px}
+    textarea,select{width:100%;border:1px solid var(--line);background:#0b1423;color:var(--text);border-radius:12px;padding:13px;font:inherit}
+    textarea{min-height:210px;resize:vertical}select{min-height:47px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-top:16px}.control{min-width:0}
+    .rangehead{display:flex;justify-content:space-between;color:var(--muted);font-size:14px}.rangehead strong{color:var(--text)}
+    input[type=range]{width:100%;accent-color:var(--accent);margin-top:12px}
+    .buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+    button{border:0;border-radius:12px;padding:12px 18px;font:700 15px system-ui;cursor:pointer;background:#26364d;color:var(--text)}
+    button.primary{background:var(--accent);color:#17100a}button:active{transform:scale(.98)}
+    .status{margin-top:14px;padding:11px 13px;border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:14px}
+    .foot{color:var(--muted);font-size:13px;margin-top:18px}.count{float:right;color:var(--muted);font-size:12px}
+    @media(max-width:620px){.grid{grid-template-columns:1fr}.panel{padding:15px}main{padding:20px 12px 36px}}
+  </style>
+</head>
+<body>
+<main>
+  <header class="brand">
+    <div class="logo">IV</div>
+    <div><h1>Indian Voice Studio</h1><p class="sub">Hindi • English • Hinglish text-to-speech</p></div>
+  </header>
+
+  <section class="panel">
+    <label for="script">Your script <span class="count" id="count">0 characters</span></label>
+    <textarea id="script" maxlength="12000" placeholder="यहाँ अपनी कहानी या documentary script paste करें...&#10;&#10;You can also write in English or Hinglish."></textarea>
+    <p class="hint">Tip: Hinglish के लिए Hindi और English शब्द एक साथ लिखें। उदाहरण: आज हम explore करेंगे एक रहस्यमयी जगह को।</p>
+
+    <div class="grid">
+      <div class="control">
+        <label for="language">Language / accent</label>
+        <select id="language">
+          <option value="hi-IN">Hindi (India)</option>
+          <option value="en-IN">English (India)</option>
+          <option value="auto">Hinglish / Auto detect</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="voice">Available device voice</label>
+        <select id="voice"><option value="">Loading voices…</option></select>
+        <p class="hint" id="voiceHint">Voice options depend on your phone or computer.</p>
+      </div>
+      <div class="control">
+        <div class="rangehead"><label for="rate">Speaking speed</label><strong id="rateValue">1.0×</strong></div>
+        <input id="rate" type="range" min="0.65" max="1.35" step="0.05" value="1">
+      </div>
+      <div class="control">
+        <div class="rangehead"><label for="pitch">Voice pitch</label><strong id="pitchValue">1.0</strong></div>
+        <input id="pitch" type="range" min="0.7" max="1.3" step="0.05" value="1">
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button class="primary" id="play">▶ Generate & Play</button>
+      <button id="pause">Ⅱ Pause</button>
+      <button id="resume">▶ Resume</button>
+      <button id="stop">■ Stop</button>
+      <button id="clear">Clear text</button>
+    </div>
+    <div class="status" id="status" role="status">Ready. Paste your text and press Generate & Play.</div>
+  </section>
+
+  <p class="foot">Free browser-based version. It uses voices installed or provided by your device/browser. This version plays speech but does not export MP3 audio.</p>
+</main>
+<script>
+(() => {
+  const synth = window.speechSynthesis;
+  const script = document.getElementById('script');
+  const voiceSelect = document.getElementById('voice');
+  const language = document.getElementById('language');
+  const status = document.getElementById('status');
+  let voices = [];
+
+  const sayStatus = message => status.textContent = message;
+  function loadVoices() {
+    if (!synth) return;
+    voices = synth.getVoices();
+    const oldValue = voiceSelect.value;
+    voiceSelect.innerHTML = '';
+    const relevant = voices.filter(v => /^(hi-IN|en-IN)/i.test(v.lang));
+    const list = relevant.length ? relevant : voices;
+    if (!list.length) {
+      voiceSelect.add(new Option('No voices found on this device', ''));
+      document.getElementById('voiceHint').textContent =
+        'Install Hindi/English speech voices in your device settings, then reload this page.';
+      return;
+    }
+    list.forEach(v => voiceSelect.add(new Option(`${v.name} — ${v.lang}${v.default ? ' (Default)' : ''}`, voices.indexOf(v))));
+    if (oldValue && [...voiceSelect.options].some(o => o.value === oldValue)) voiceSelect.value = oldValue;
+    document.getElementById('voiceHint').textContent = `${list.length} matching voice(s) available on this device.`;
+  }
+  function detectedLanguage(text) {
+    if (language.value !== 'auto') return language.value;
+    return /[\u0900-\u097F]/.test(text) ? 'hi-IN' : 'en-IN';
+  }
+  function speak() {
+    const text = script.value.trim();
+    if (!text) { sayStatus('Please enter some text first.'); return; }
+    if (!synth || !window.SpeechSynthesisUtterance) {
+      sayStatus('Speech synthesis is not supported in this browser. Try Chrome.'); return;
+    }
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = detectedLanguage(text);
+    const selected = voices[Number(voiceSelect.value)];
+    if (selected) utterance.voice = selected;
+    utterance.rate = Number(document.getElementById('rate').value);
+    utterance.pitch = Number(document.getElementById('pitch').value);
+    utterance.onstart = () => sayStatus('Speaking…');
+    utterance.onend = () => sayStatus('Finished speaking.');
+    utterance.onerror = e => sayStatus(`Speech error: ${e.error}. Try another voice or language.`);
+    synth.speak(utterance);
+  }
+
+  document.getElementById('play').addEventListener('click', speak);
+  document.getElementById('pause').addEventListener('click', () => { if (synth) { synth.pause(); sayStatus('Paused.'); } });
+  document.getElementById('resume').addEventListener('click', () => { if (synth) { synth.resume(); sayStatus('Resumed.'); } });
+  document.getElementById('stop').addEventListener('click', () => { if (synth) synth.cancel(); sayStatus('Stopped.'); });
+  document.getElementById('clear').addEventListener('click', () => { if (synth) synth.cancel(); script.value=''; updateCount(); sayStatus('Text cleared.'); });
+  script.addEventListener('input', updateCount);
+  function updateCount(){ document.getElementById('count').textContent = `${script.value.length} characters`; }
+  document.getElementById('rate').addEventListener('input', e => document.getElementById('rateValue').textContent = `${Number(e.target.value).toFixed(2)}×`);
+  document.getElementById('pitch').addEventListener('input', e => document.getElementById('pitchValue').textContent = Number(e.target.value).toFixed(2));
+  if (synth) {
+    loadVoices();
+    if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoices;
+    setTimeout(loadVoices, 700);
+  } else {
+    sayStatus('Speech synthesis is not available. Open this app in Chrome or Edge.');
+  }
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.warn));
+}
+</script>
+</body>
+</html>
